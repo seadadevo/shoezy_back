@@ -1,0 +1,18 @@
+import { Router } from "express";
+import { PERMISSIONS } from "../../common/auth/rbac.constants";
+import { requireAuth } from "../../common/middlewares/auth.middleware";
+import { requirePermission } from "../../common/middlewares/permission.middleware";
+import { validate } from "../../common/middlewares/validate.middleware";
+import { CategoriesController } from "./categories.controller";
+import { parseCategoryUpload } from "./categories-upload.middleware";
+import { categoryIdSchema, categoryTreeSchema, createCategorySchema, listCategoriesSchema, updateCategorySchema } from "./categories.validation";
+const router = Router();
+const controller = new CategoriesController();
+const authorize = requirePermission(PERMISSIONS.CATEGORIES_MANAGE_ANY);
+router.get("/", validate(listCategoriesSchema), requireAuth, authorize, controller.list);
+router.get("/tree", validate(categoryTreeSchema), requireAuth, authorize, controller.tree);
+router.get("/:categoryId", validate(categoryIdSchema), requireAuth, authorize, controller.get);
+router.post("/", requireAuth, authorize, parseCategoryUpload, validate(createCategorySchema), controller.create);
+router.patch("/:categoryId", requireAuth, authorize, parseCategoryUpload, validate(updateCategorySchema), controller.update);
+router.delete("/:categoryId", validate(categoryIdSchema), requireAuth, authorize, controller.delete);
+export const CategoriesRoutes = router;

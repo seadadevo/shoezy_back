@@ -1,0 +1,38 @@
+import { z } from "zod";
+import { nonnegativePostgresInt } from "../../common/validation/postgres-int";
+
+const uuid = z.string().uuid();
+const empty = z.object({}).strict();
+const emptyBody = z.preprocess((value) => value ?? {}, empty);
+const pagination = z.object({ page: z.coerce.number().int().positive().default(1), limit: z.coerce.number().int().positive().max(100).default(20) }).strict();
+const code = z.string().trim().min(1).max(80).regex(/^[A-Za-z0-9_-]+$/).transform((value) => value.toUpperCase());
+const name = z.string().trim().min(1).max(150);
+const location = z.string().trim().min(1).max(120);
+const price = z.string().regex(/^(?:0|[1-9]\d*)$/).refine((value) => BigInt(value) <= 9_223_372_036_854_775_807n);
+const zoneParams = z.object({ zoneId: uuid }).strict();
+const areaParams = z.object({ zoneId: uuid, areaId: uuid }).strict();
+const rateParams = z.object({ zoneId: uuid, shippingMethodId: uuid }).strict();
+const zoneFields = { code, name, isActive: z.boolean().optional() };
+const areaFields = { state: location, city: location.nullable().optional(), area: location.nullable().optional() };
+const rateFields = { priceMinor: price, estimatedMinDays: nonnegativePostgresInt.nullable().optional(), estimatedMaxDays: nonnegativePostgresInt.nullable().optional(), isActive: z.boolean().optional() };
+const aggregateArea = z.object(areaFields).strict().refine((v) => !v.area || Boolean(v.city), "City is required when area is specified");
+const aggregateRate = z.object({ shippingMethodId: uuid, ...rateFields }).strict().refine((v) => v.estimatedMinDays == null || v.estimatedMaxDays == null || v.estimatedMinDays <= v.estimatedMaxDays, "Invalid delivery estimate range");
+const aggregateRates = z.array(aggregateRate).max(100).refine((rates) => new Set(rates.map((rate) => rate.shippingMethodId)).size === rates.length, "Shipping method IDs must be unique");
+const areaChanges = z.object({ upsert: z.array(z.object({ id: uuid.optional(), state: location.optional(), city: location.nullable().optional(), area: location.nullable().optional() }).strict()).max(500), deleteIds: z.array(uuid).max(500).default([]) }).strict();
+const rateChanges = z.object({ upsert: aggregateRates, deleteMethodIds: z.array(uuid).max(100).default([]) }).strict();
+
+export const listZonesSchema = z.object({ body: emptyBody, params: empty, query: pagination }).strict();
+export const zoneIdSchema = z.object({ body: emptyBody, params: zoneParams, query: empty }).strict();
+export const createZoneSchema = z.object({ body: z.object({ ...zoneFields, areas: z.array(aggregateArea).max(500).optional(), rates: aggregateRates.optional() }).strict(), params: empty, query: empty }).strict();
+export const updateZoneSchema = z.object({ body: z.object({ code: code.optional(), name: name.optional(), isActive: z.boolean().optional(), areas: areaChanges.optional(), rates: rateChanges.optional() }).strict().refine((v) => Object.keys(v).length > 0), params: zoneParams, query: empty }).strict();
+export const createZoneAreaSchema = z.object({ body: z.object(areaFields).strict().refine((v) => !v.area || Boolean(v.city), "City is required when area is specified"), params: zoneParams, query: empty }).strict();
+export const updateZoneAreaSchema = z.object({ body: z.object({ state: location.optional(), city: location.nullable().optional(), area: location.nullable().optional() }).strict().refine((v) => Object.keys(v).length > 0), params: areaParams, query: empty }).strict();
+export const deleteZoneAreaSchema = z.object({ body: emptyBody, params: areaParams, query: empty }).strict();
+export const upsertZoneRateSchema = z.object({ body: z.object(rateFields).strict().refine((v) => v.estimatedMinDays == null || v.estimatedMaxDays == null || v.estimatedMinDays <= v.estimatedMaxDays), params: rateParams, query: empty }).strict();
+export const deleteZoneRateSchema = z.object({ body: emptyBody, params: rateParams, query: empty }).strict();
+export type ListZonesQuery = z.infer<typeof listZonesSchema>["query"];
+export type CreateZoneInput = z.infer<typeof createZoneSchema>["body"];
+export type UpdateZoneInput = z.infer<typeof updateZoneSchema>["body"];
+export type CreateZoneAreaInput = z.infer<typeof createZoneAreaSchema>["body"];
+export type UpdateZoneAreaInput = z.infer<typeof updateZoneAreaSchema>["body"];
+export type UpsertZoneRateInput = z.infer<typeof upsertZoneRateSchema>["body"];

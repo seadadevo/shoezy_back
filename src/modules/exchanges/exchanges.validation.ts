@@ -1,0 +1,14 @@
+import { z } from "zod";
+import { POSTGRES_INT_MAX } from "../../common/validation/postgres-int";
+const uuid = z.string().uuid();
+const empty = z.object({}).strict();
+const emptyBody = z.preprocess((value) => value ?? {}, empty);
+const listQuery = z.object({ page: z.coerce.number().int().positive().default(1), limit: z.coerce.number().int().positive().max(100).default(20) }).strict();
+export const createExchangeSchema = z.object({ body: z.object({ orderItemId: uuid, replacementVariantId: uuid, quantity: z.number().int().min(1).max(POSTGRES_INT_MAX), reason: z.string().trim().min(1).max(500).optional() }).strict(), params: z.object({ orderId: uuid }).strict(), query: empty }).strict();
+export const listOwnExchangesSchema = z.object({ body: emptyBody, params: empty, query: listQuery }).strict();
+export const exchangeIdSchema = z.object({ body: emptyBody, params: z.object({ exchangeId: uuid }).strict(), query: empty }).strict();
+export const listAdminExchangesSchema = z.object({ body: emptyBody, params: empty, query: listQuery.extend({ status: z.enum(["REQUESTED", "APPROVED", "REJECTED", "COMPLETED"]).optional(), orderId: uuid.optional() }) }).strict();
+export const decideExchangeSchema = z.object({ body: z.object({ status: z.enum(["APPROVED", "REJECTED"]) }).strict(), params: z.object({ exchangeId: uuid }).strict(), query: empty }).strict();
+export type CreateExchangeInput = z.infer<typeof createExchangeSchema>["body"];
+export type ListOwnExchangesQuery = z.infer<typeof listOwnExchangesSchema>["query"];
+export type ListAdminExchangesQuery = z.infer<typeof listAdminExchangesSchema>["query"];

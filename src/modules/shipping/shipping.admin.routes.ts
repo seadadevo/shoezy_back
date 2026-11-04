@@ -1,0 +1,14 @@
+import { Router } from "express";
+import { PERMISSIONS } from "../../common/auth/rbac.constants";
+import { requireAuth } from "../../common/middlewares/auth.middleware";
+import { requirePermission } from "../../common/middlewares/permission.middleware";
+import { validate } from "../../common/middlewares/validate.middleware";
+import { ShippingController } from "./shipping.controller";
+import { createShippingMethodSchema, listAdminShippingMethodsSchema, shippingMethodIdSchema, updateShippingMethodSchema } from "./shipping.validation";
+const router = Router(); const controller = new ShippingController();
+router.get("/", validate(listAdminShippingMethodsSchema), requireAuth, requirePermission(PERMISSIONS.SHIPPING_MANAGE_ANY), controller.listAdmin);
+router.get("/:shippingMethodId", validate(shippingMethodIdSchema), requireAuth, requirePermission(PERMISSIONS.SHIPPING_MANAGE_ANY), controller.getMethod);
+router.post("/", validate(createShippingMethodSchema), requireAuth, requirePermission(PERMISSIONS.SHIPPING_MANAGE_ANY), controller.createMethod);
+router.patch("/:shippingMethodId", validate(updateShippingMethodSchema), requireAuth, requirePermission(PERMISSIONS.SHIPPING_MANAGE_ANY), controller.updateMethod);
+router.delete("/:shippingMethodId", validate(shippingMethodIdSchema), requireAuth, requirePermission(PERMISSIONS.SHIPPING_MANAGE_ANY), controller.deleteMethod);
+export const AdminShippingRoutes = router;

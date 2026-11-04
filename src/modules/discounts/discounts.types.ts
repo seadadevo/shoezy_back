@@ -1,0 +1,51 @@
+import type { Prisma } from "@prisma/client";
+
+export const discountSelect = {
+  id: true,
+  name: true,
+  description: true,
+  imageUrl: true,
+  imageStorageProvider: true,
+  imageStorageKey: true,
+  showOnStorefront: true,
+  sortOrder: true,
+  ctaUrl: true,
+  code: true,
+  type: true,
+  scope: true,
+  priority: true,
+  value: true,
+  currency: true,
+  minOrderMinor: true,
+  maxDiscountMinor: true,
+  usageLimit: true,
+  perCustomerLimit: true,
+  startsAt: true,
+  endsAt: true,
+  isActive: true,
+  combinable: true,
+  archivedAt: true,
+  createdAt: true,
+  updatedAt: true,
+  translations: {
+    orderBy: { locale: "asc" as const },
+    select: { locale: true, name: true, description: true },
+  },
+  targets: {
+    orderBy: [{ productId: "asc" as const }, { variantId: "asc" as const }, { categoryId: "asc" as const }, { collectionId: "asc" as const }, { id: "asc" as const }],
+    select: {
+      id: true,
+      productId: true,
+      variantId: true,
+      categoryId: true,
+      collectionId: true,
+      product: { select: { id: true, name: true, slug: true, deletedAt: true } },
+      variant: { select: { id: true, sku: true, isActive: true, product: { select: { id: true, name: true, slug: true, deletedAt: true } } } },
+      category: { select: { id: true, name: true, slug: true } },
+      collection: { select: { id: true, name: true, slug: true, isActive: true } },
+    },
+  },
+  _count: { select: { redemptions: true } },
+} as const satisfies Prisma.DiscountSelect;
+
+export type DiscountRecord = Prisma.DiscountGetPayload<{ select: typeof discountSelect }>;

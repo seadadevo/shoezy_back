@@ -1,0 +1,8 @@
+node_modules/
+dist/
+.env
+coverage/
+*.log
+*.zip
+storage/uploads/*
+!storage/uploads/.gitkeep

@@ -1,0 +1,17 @@
+import { AppError } from "../../common/errors/app-error";
+import { toAdminShippingMethodDto, toOrderShipmentDto, toPublicShippingMethodDto } from "./shipping.dto";
+import { ShippingRepository, ShippingRepositoryError } from "./shipping.repository";
+import type { CreateShippingMethodInput, ListAdminShippingMethodsQuery, ListPublicShippingMethodsQuery, UpdateOrderShippingInput, UpdateShippingMethodInput } from "./shipping.validation";
+const pagination = (page: number, limit: number, total: number) => ({ page, limit, total, totalPages: Math.ceil(total / limit) });
+const validateDays = (minimum: number | null, maximum: number | null) => { if (minimum !== null && maximum !== null && minimum > maximum) throw new AppError(422, "estimatedMinDays cannot exceed estimatedMaxDays", "SHIPPING_ESTIMATE_RANGE_INVALID"); };
+export class ShippingService {
+  constructor(private readonly repository = new ShippingRepository()) {}
+  async listPublic(query: ListPublicShippingMethodsQuery) { const result = await this.repository.listPublic(query); return { items: result.items.map(toPublicShippingMethodDto), pagination: pagination(query.page, query.limit, result.total) }; }
+  async listAdmin(query: ListAdminShippingMethodsQuery) { const result = await this.repository.listAdmin(query); return { items: result.items.map(toAdminShippingMethodDto), pagination: pagination(query.page, query.limit, result.total) }; }
+  async getMethod(id: string) { const method = await this.repository.findMethod(id); if (!method) throw new AppError(404, "Shipping method not found", "SHIPPING_METHOD_NOT_FOUND"); return toAdminShippingMethodDto(method); }
+  async createMethod(input: CreateShippingMethodInput) { validateDays(input.estimatedMinDays ?? null, input.estimatedMaxDays ?? null); try { return toAdminShippingMethodDto(await this.repository.create(input)); } catch (error: unknown) { if (error instanceof ShippingRepositoryError) throw new AppError(409, "Shipping method code already exists", "SHIPPING_METHOD_CODE_CONFLICT"); throw error; } }
+  async updateMethod(id: string, input: UpdateShippingMethodInput) { try { const method = await this.repository.update(id, input, validateDays); if (!method) throw new AppError(404, "Shipping method not found", "SHIPPING_METHOD_NOT_FOUND"); return toAdminShippingMethodDto(method); } catch (error: unknown) { if (error instanceof ShippingRepositoryError) throw new AppError(409, "Shipping method code already exists", "SHIPPING_METHOD_CODE_CONFLICT"); throw error; } }
+  async deleteMethod(id: string) { if (!await this.repository.delete(id)) throw new AppError(404, "Shipping method not found", "SHIPPING_METHOD_NOT_FOUND"); }
+  async updateOrderShipping(orderId: string, input: UpdateOrderShippingInput) { const result = await this.repository.updateOrderShipping(orderId, input); if (result.kind === "NOT_FOUND") throw new AppError(404, "Order not found", "ORDER_NOT_FOUND"); if (result.kind === "INVALID_STATE") throw new AppError(409, "Shipping details require a confirmed, shipped, or delivered Order", "ORDER_SHIPPING_STATE_INVALID"); if (result.kind === "SHIPPING_DETAILS_REQUIRED") throw new AppError(409, "A shipping provider is required for shipped and delivered Orders", "ORDER_SHIPPING_DETAILS_REQUIRED"); return toOrderShipmentDto(result.order); }
+  async getOwnShipment(userId: string, orderId: string) { const order = await this.repository.findOwnShipment(userId, orderId); if (!order) throw new AppError(404, "Shipment not found", "SHIPMENT_NOT_FOUND"); return toOrderShipmentDto(order); }
+}

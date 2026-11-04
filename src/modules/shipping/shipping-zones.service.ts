@@ -1,0 +1,20 @@
+import { AppError } from "../../common/errors/app-error";
+import { isUniqueConstraintError } from "../auth/auth.errors";
+import { ShippingZonesRepository } from "./shipping-zones.repository";
+import type { CreateZoneAreaInput, CreateZoneInput, ListZonesQuery, UpdateZoneAreaInput, UpdateZoneInput, UpsertZoneRateInput } from "./shipping-zones.validation";
+
+function dto<T extends { rates: { priceMinor: bigint }[] }>(zone: T) { return { ...zone, rates: zone.rates.map((rate) => ({ ...rate, priceMinor: rate.priceMinor.toString() })) }; }
+export class ShippingZonesService {
+  constructor(private readonly repository = new ShippingZonesRepository()) {}
+  formContext() { return this.repository.formContext(); }
+  async list(query: ListZonesQuery) { const result = await this.repository.list(query); return { items: result.items.map(dto), pagination: { page: query.page, limit: query.limit, total: result.total, totalPages: Math.ceil(result.total / query.limit) } }; }
+  async get(zoneId: string) { const zone = await this.repository.get(zoneId); if (!zone) throw new AppError(404, "Shipping zone not found", "SHIPPING_ZONE_NOT_FOUND"); return dto(zone); }
+  async create(input: CreateZoneInput, actorId?: string) { try { return dto(await this.repository.create(input, actorId)); } catch (error: unknown) { if (isUniqueConstraintError(error)) throw new AppError(409, "Shipping zone code or area already exists", "SHIPPING_ZONE_CONFLICT"); throw error; } }
+  async update(zoneId: string, input: UpdateZoneInput, actorId?: string) { await this.get(zoneId); try { return dto(await this.repository.update(zoneId, input, actorId)); } catch (error: unknown) { if (isUniqueConstraintError(error)) throw new AppError(409, "Shipping zone code or area already exists", "SHIPPING_ZONE_CONFLICT"); throw error; } }
+  async delete(zoneId: string) { if ((await this.repository.delete(zoneId)).count !== 1) throw new AppError(404, "Shipping zone not found", "SHIPPING_ZONE_NOT_FOUND"); }
+  async addArea(zoneId: string, input: CreateZoneAreaInput) { await this.get(zoneId); try { return await this.repository.addArea(zoneId, input); } catch (error: unknown) { if (isUniqueConstraintError(error)) throw new AppError(409, "Shipping area is already assigned", "SHIPPING_ZONE_AREA_CONFLICT"); throw error; } }
+  async updateArea(zoneId: string, areaId: string, input: UpdateZoneAreaInput, actorId?: string) { try { const value = await this.repository.updateArea(zoneId, areaId, input, actorId); if (!value) throw new AppError(404, "Shipping area not found", "SHIPPING_ZONE_AREA_NOT_FOUND"); if (value === "CITY_REQUIRED") throw new AppError(422, "City is required when area is specified", "SHIPPING_ZONE_CITY_REQUIRED"); return value; } catch (error: unknown) { if (isUniqueConstraintError(error)) throw new AppError(409, "Shipping area is already assigned", "SHIPPING_ZONE_AREA_CONFLICT"); throw error; } }
+  async deleteArea(zoneId: string, areaId: string) { if ((await this.repository.deleteArea(zoneId, areaId)).count !== 1) throw new AppError(404, "Shipping area not found", "SHIPPING_ZONE_AREA_NOT_FOUND"); }
+  async upsertRate(zoneId: string, shippingMethodId: string, input: UpsertZoneRateInput, actorId?: string) { const value = await this.repository.upsertRate(zoneId, shippingMethodId, input, actorId); if (value === "ZONE_NOT_FOUND") throw new AppError(404, "Shipping zone not found", "SHIPPING_ZONE_NOT_FOUND"); if (value === "METHOD_NOT_FOUND") throw new AppError(404, "Shipping method not found", "SHIPPING_METHOD_NOT_FOUND"); if (value === "CURRENCY_MISMATCH") throw new AppError(409, "Shipping method currency must be TND", "SHIPPING_CURRENCY_MISMATCH"); if (value === "ESTIMATE_RANGE_INVALID") throw new AppError(422, "estimatedMinDays cannot exceed estimatedMaxDays", "SHIPPING_ESTIMATE_RANGE_INVALID"); return { ...value, priceMinor: value.priceMinor.toString() }; }
+  async deleteRate(zoneId: string, shippingMethodId: string) { if ((await this.repository.deleteRate(zoneId, shippingMethodId)).count !== 1) throw new AppError(404, "Shipping rate not found", "SHIPPING_ZONE_RATE_NOT_FOUND"); }
+}

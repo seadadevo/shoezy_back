@@ -1,0 +1,46 @@
+import { Router } from "express";
+import { BrandsRoutes } from "../brands/brands.routes";
+import { CategoriesRoutes } from "../categories/categories.routes";
+import { SizeGuidesRoutes } from "../size-guides/size-guides.routes";
+import { ProductsRoutes } from "../products/products.routes";
+import { CollectionsRoutes } from "../collections/collections.routes";
+import { DiscountsRoutes } from "../discounts/discounts.routes";
+import { AdminOrdersRoutes } from "../orders/orders.admin.routes";
+import { AdminShippingRoutes } from "../shipping/shipping.admin.routes";
+import { AdminReviewsRoutes } from "../reviews/reviews.admin.routes";
+import { AdminReturnsRoutes } from "../returns/returns.admin.routes";
+import { DashboardRoutes } from "../admin-dashboard/dashboard.routes";
+import { AdminStoreSettingsRoutes } from "../store-settings/store-settings.routes";
+import { AdminShippingZonesRoutes } from "../shipping/shipping-zones.admin.routes";
+import { AdminInventoryRoutes } from "../inventory/inventory.admin.routes";
+import { AdminExchangesRoutes } from "../exchanges/exchanges.admin.routes";
+import { AdminCustomersRoutes } from "../users/customers.admin.routes";
+import { AuditLogRoutes } from "../admin-audit/audit-log.routes";
+import { auditAdminMutation } from "../admin-audit/audit-admin-mutation.middleware";
+import { AdminHomepageRoutes } from "../homepage/homepage.routes";
+import { AdminSupportRoutes } from "../support/support.routes";
+
+const router = Router();
+router.use(auditAdminMutation);
+router.use("/audit-logs", AuditLogRoutes);
+router.use("/brands", BrandsRoutes);
+router.use("/categories", CategoriesRoutes);
+router.use("/size-guides", SizeGuidesRoutes);
+router.use("/products", ProductsRoutes);
+router.use("/collections", CollectionsRoutes);
+router.use("/discounts", DiscountsRoutes);
+router.use("/orders", AdminOrdersRoutes);
+router.use("/shipping-methods", AdminShippingRoutes);
+router.use("/reviews", AdminReviewsRoutes);
+router.use("/returns", AdminReturnsRoutes);
+router.use("/dashboard", DashboardRoutes);
+router.use("/store-settings", AdminStoreSettingsRoutes);
+router.use("/shipping-zones", AdminShippingZonesRoutes);
+router.use("/inventory", AdminInventoryRoutes);
+router.use("/exchanges", AdminExchangesRoutes);
+router.use("/customers", AdminCustomersRoutes);
+router.use("/homepage", AdminHomepageRoutes);
+router.use("/support", AdminSupportRoutes);
+
+export const AdminRoutes = router;
+// Future admin endpoints must compose requireAuth with explicit permission middleware.

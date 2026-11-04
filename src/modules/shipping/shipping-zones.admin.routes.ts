@@ -1,0 +1,22 @@
+import { Router } from "express";
+import { PERMISSIONS } from "../../common/auth/rbac.constants";
+import { requireAuth } from "../../common/middlewares/auth.middleware";
+import { requirePermission } from "../../common/middlewares/permission.middleware";
+import { validate } from "../../common/middlewares/validate.middleware";
+import { ShippingZonesController } from "./shipping-zones.controller";
+import { createZoneAreaSchema, createZoneSchema, deleteZoneAreaSchema, deleteZoneRateSchema, listZonesSchema, updateZoneAreaSchema, updateZoneSchema, upsertZoneRateSchema, zoneIdSchema } from "./shipping-zones.validation";
+
+const router = Router(), controller = new ShippingZonesController();
+router.use(requireAuth, requirePermission(PERMISSIONS.SHIPPING_MANAGE_ANY));
+router.get("/", validate(listZonesSchema), controller.list);
+router.get("/form-context", validate(listZonesSchema), controller.formContext);
+router.post("/", validate(createZoneSchema), controller.create);
+router.get("/:zoneId", validate(zoneIdSchema), controller.get);
+router.patch("/:zoneId", validate(updateZoneSchema), controller.update);
+router.delete("/:zoneId", validate(zoneIdSchema), controller.delete);
+router.post("/:zoneId/areas", validate(createZoneAreaSchema), controller.addArea);
+router.patch("/:zoneId/areas/:areaId", validate(updateZoneAreaSchema), controller.updateArea);
+router.delete("/:zoneId/areas/:areaId", validate(deleteZoneAreaSchema), controller.deleteArea);
+router.put("/:zoneId/rates/:shippingMethodId", validate(upsertZoneRateSchema), controller.upsertRate);
+router.delete("/:zoneId/rates/:shippingMethodId", validate(deleteZoneRateSchema), controller.deleteRate);
+export const AdminShippingZonesRoutes = router;

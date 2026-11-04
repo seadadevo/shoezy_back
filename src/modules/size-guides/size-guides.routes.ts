@@ -1,0 +1,17 @@
+import { Router } from "express";
+import { PERMISSIONS } from "../../common/auth/rbac.constants";
+import { requireAuth } from "../../common/middlewares/auth.middleware";
+import { requirePermission } from "../../common/middlewares/permission.middleware";
+import { validate } from "../../common/middlewares/validate.middleware";
+import { SizeGuidesController } from "./size-guides.controller";
+import { createSizeGuideEntrySchema, createSizeGuideSchema, listSizeGuidesSchema, sizeGuideEntryIdSchema, sizeGuideIdSchema, updateSizeGuideEntrySchema, updateSizeGuideSchema } from "./size-guides.validation";
+const router = Router(); const controller = new SizeGuidesController(); const authorize = requirePermission(PERMISSIONS.SIZE_GUIDES_MANAGE_ANY);
+router.get("/", validate(listSizeGuidesSchema), requireAuth, authorize, controller.list);
+router.get("/:sizeGuideId", validate(sizeGuideIdSchema), requireAuth, authorize, controller.get);
+router.post("/", validate(createSizeGuideSchema), requireAuth, authorize, controller.create);
+router.patch("/:sizeGuideId", validate(updateSizeGuideSchema), requireAuth, authorize, controller.update);
+router.delete("/:sizeGuideId", validate(sizeGuideIdSchema), requireAuth, authorize, controller.delete);
+router.post("/:sizeGuideId/entries", validate(createSizeGuideEntrySchema), requireAuth, authorize, controller.createEntry);
+router.patch("/:sizeGuideId/entries/:entryId", validate(updateSizeGuideEntrySchema), requireAuth, authorize, controller.updateEntry);
+router.delete("/:sizeGuideId/entries/:entryId", validate(sizeGuideEntryIdSchema), requireAuth, authorize, controller.deleteEntry);
+export const SizeGuidesRoutes = router;

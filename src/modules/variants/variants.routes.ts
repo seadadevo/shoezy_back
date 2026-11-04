@@ -1,0 +1,15 @@
+import { Router } from "express";
+import { PERMISSIONS } from "../../common/auth/rbac.constants";
+import { requireAuth } from "../../common/middlewares/auth.middleware";
+import { requirePermission } from "../../common/middlewares/permission.middleware";
+import { validate } from "../../common/middlewares/validate.middleware";
+import { VariantsController } from "./variants.controller";
+import { createVariantSchema, listVariantsSchema, updateStockSchema, updateVariantSchema, variantIdSchema } from "./variants.validation";
+const router = Router({ mergeParams: true }); const controller = new VariantsController(); const authorize = requirePermission(PERMISSIONS.VARIANTS_MANAGE_ANY);
+router.get("/", validate(listVariantsSchema), requireAuth, authorize, controller.list);
+router.get("/:variantId", validate(variantIdSchema), requireAuth, authorize, controller.get);
+router.post("/", validate(createVariantSchema), requireAuth, authorize, controller.create);
+router.patch("/:variantId", validate(updateVariantSchema), requireAuth, authorize, controller.update);
+router.delete("/:variantId", validate(variantIdSchema), requireAuth, authorize, controller.delete);
+router.patch("/:variantId/stock", validate(updateStockSchema), requireAuth, authorize, controller.stock);
+export const VariantsRoutes = router;

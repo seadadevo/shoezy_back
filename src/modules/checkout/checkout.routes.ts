@@ -1,0 +1,11 @@
+import { Router } from "express";
+import { PERMISSIONS } from "../../common/auth/rbac.constants";
+import { requireAuth } from "../../common/middlewares/auth.middleware";
+import { requirePermission } from "../../common/middlewares/permission.middleware";
+import { validate } from "../../common/middlewares/validate.middleware";
+import { commerceMutationRateLimit } from "../../common/middlewares/commerce-rate-limit.middleware";
+import { CheckoutController } from "./checkout.controller";
+import { checkoutPreviewSchema } from "./checkout.validation";
+const router = Router(); const controller = new CheckoutController();
+router.post("/preview", validate(checkoutPreviewSchema), requireAuth, requirePermission(PERMISSIONS.CART_READ_OWN), commerceMutationRateLimit(60, "CHECKOUT_RATE_LIMITED"), controller.preview);
+export const CheckoutRoutes = router;
