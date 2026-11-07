@@ -30,7 +30,7 @@ const adminOrderUrl = (orderId: string) => {
 
 export function adminOrderEmail(order: OrderDetailRecord, to: string): OrderEmailMessage {
   const text = [
-    `New Shoozy Order #${order.orderNumber}`,
+    `New Shoezy Order #${order.orderNumber}`,
     `Placed: ${(order.placedAt ?? order.createdAt).toISOString()}`,
     `Status: ${order.status}`,
     `Customer: ${name(order)} (${order.userId ? "account" : "guest"})`,
@@ -46,14 +46,14 @@ export function adminOrderEmail(order: OrderDetailRecord, to: string): OrderEmai
     `Payment: ${order.paymentMethod} (${order.paymentStatus})`,
     `Admin order details: ${adminOrderUrl(order.id)}`,
   ].join("\n");
-  return { to, subject: safeSubject(`New Shoozy Order #${order.orderNumber}`), text, html: html(text) };
+  return { to, subject: safeSubject(`New Shoezy Order #${order.orderNumber}`), text, html: html(text) };
 }
 
 export function customerOrderEmail(order: OrderDetailRecord): OrderEmailMessage | null {
   if (!order.customerEmail) return null;
   const text = [
     `Hello ${name(order)},`,
-    `Thank you for your Shoozy order #${order.orderNumber}.`,
+    `Thank you for your Shoezy order #${order.orderNumber}.`,
     `Current status: ${order.status}`,
     "Items:", ...itemLines(order),
     `Total: ${formatTndMinor(order.totalMinor)}`,
@@ -61,7 +61,7 @@ export function customerOrderEmail(order: OrderDetailRecord): OrderEmailMessage 
     `Shipping method: ${order.shippingMethodName ?? order.shippingMethodCode ?? "Unknown"}`,
     `Payment: ${order.paymentMethod} (${order.paymentStatus})`,
   ].join("\n");
-  return { to: order.customerEmail, subject: safeSubject(`Shoozy Order Confirmation #${order.orderNumber}`), text, html: html(text) };
+  return { to: order.customerEmail, subject: safeSubject(`Shoezy Order Confirmation #${order.orderNumber}`), text, html: html(text) };
 }
 
 export interface OrderEmailSender { send(message: OrderEmailMessage): Promise<void> }
@@ -75,7 +75,7 @@ export class SmtpOrderEmailSender implements OrderEmailSender {
       connectionTimeout: 20_000, greetingTimeout: 20_000, socketTimeout: 30_000,
     });
     await transport.sendMail({
-      from: { name: env.MAIL_FROM_NAME ?? "Shoozy", address: env.MAIL_FROM },
+      from: { name: env.MAIL_FROM_NAME ?? "Shoezy", address: env.MAIL_FROM },
       to: message.to, subject: message.subject, text: message.text, html: message.html,
     });
   }

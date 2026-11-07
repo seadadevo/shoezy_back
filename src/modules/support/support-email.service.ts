@@ -17,7 +17,7 @@ export function supportAdminEmail(message: SupportEmailData, recipient: string, 
   const conversation = message.conversation;
   const inboxUrl = new URL("/admin/support", env.FRONTEND_URL);
   if (conversation.id) inboxUrl.searchParams.set("conversation", conversation.id);
-  const heading = `New Shoozy Support ${newConversation ? "Request" : "Message"} #${conversation.reference}`;
+  const heading = `New Shoezy Support ${newConversation ? "Request" : "Message"} #${conversation.reference}`;
   const text = [
     heading,
     `Customer: ${conversation.guestName} (${conversation.userId ? "account" : "guest"})`,

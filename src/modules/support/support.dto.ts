@@ -13,7 +13,7 @@ type Conversation = Prisma.SupportConversationGetPayload<{ select: typeof suppor
 type Message = Prisma.SupportMessageGetPayload<{ select: typeof supportMessageSelect }>;
 
 export const supportMessageDto = (item: Message, customerName: string) => ({
-  ...item, senderDisplayName: item.senderType === "ADMIN" ? "Shoozy Support" : customerName,
+  ...item, senderDisplayName: item.senderType === "ADMIN" ? "Shoezy Support" : customerName,
   createdAt: item.createdAt.toISOString(),
 });
 export const customerConversationDto = (item: Conversation) => ({

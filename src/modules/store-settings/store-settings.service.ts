@@ -1,7 +1,7 @@
 import { StoreSettingsRepository } from "./store-settings.repository";
 import type { UpdateStoreSettingsInput } from "./store-settings.validation";
 
-const defaults = { id: 1, storeName: "Shoozy", countryCode: "TN", currency: "TND", currencyMinorUnit: 3, whatsappNumber: null, supportPhone: null, supportEmail: null, shippingPolicy: null, returnWindowDays: 14, exchangeWindowDays: 14, whatsappConfirmationEnabled: false };
+const defaults = { id: 1, storeName: "Shoezy", countryCode: "TN", currency: "TND", currencyMinorUnit: 3, whatsappNumber: null, supportPhone: null, supportEmail: null, shippingPolicy: null, returnWindowDays: 14, exchangeWindowDays: 14, whatsappConfirmationEnabled: false };
 export class StoreSettingsService {
   constructor(private readonly repository = new StoreSettingsRepository()) {}
   async getPublic() {

@@ -26,15 +26,15 @@ export function passwordResetEmail(email: string, rawToken: string) {
   const expiry = durationLabel(env.AUTH_RESET_TOKEN_EXPIRES_IN);
   return {
     to: email,
-    subject: "Reset your Shoozy password",
+    subject: "Reset your Shoezy password",
     text: [
-      "Shoozy password reset",
-      "We received a request to reset your Shoozy password.",
+      "Shoezy password reset",
+      "We received a request to reset your Shoezy password.",
       `Reset your password: ${resetUrl}`,
       `This link expires in ${expiry} and can only be used once.`,
       "If you did not request this, you can safely ignore this email.",
     ].join("\n\n"),
-    html: `<div style="font-family:Arial,sans-serif;max-width:560px;margin:auto;color:#171717"><h1 style="font-size:28px">Shoozy</h1><p>We received a request to reset your Shoozy password.</p><p style="margin:28px 0"><a href="${escapeHtml(resetUrl)}" style="display:inline-block;background:#111;color:#fff;padding:12px 20px;text-decoration:none;border-radius:6px">Reset Password</a></p><p>This link expires in ${escapeHtml(expiry)} and can only be used once.</p><p style="color:#666">If you did not request this, you can safely ignore this email.</p></div>`,
+    html: `<div style="font-family:Arial,sans-serif;max-width:560px;margin:auto;color:#171717"><h1 style="font-size:28px">Shoezy</h1><p>We received a request to reset your Shoezy password.</p><p style="margin:28px 0"><a href="${escapeHtml(resetUrl)}" style="display:inline-block;background:#111;color:#fff;padding:12px 20px;text-decoration:none;border-radius:6px">Reset Password</a></p><p>This link expires in ${escapeHtml(expiry)} and can only be used once.</p><p style="color:#666">If you did not request this, you can safely ignore this email.</p></div>`,
   };
 }
 
@@ -62,7 +62,7 @@ export class SmtpAuthMailService implements AuthMailService {
     const url = new URL("/verify-email", env.FRONTEND_URL);
     url.searchParams.set("token", rawToken);
     await transport.sendMail({
-      from: { name: env.MAIL_FROM_NAME ?? "Shoozy", address: env.MAIL_FROM! },
+      from: { name: env.MAIL_FROM_NAME ?? "Shoezy", address: env.MAIL_FROM! },
       to: email,
       subject: "Verify your email",
       text: `Verify your email using this link: ${url.toString()}`,
@@ -72,7 +72,7 @@ export class SmtpAuthMailService implements AuthMailService {
   async sendPasswordReset(email: string, rawToken: string): Promise<void> {
     const transport = this.requireConfiguration();
     await transport.sendMail({
-      from: { name: env.MAIL_FROM_NAME ?? "Shoozy", address: env.MAIL_FROM! },
+      from: { name: env.MAIL_FROM_NAME ?? "Shoezy", address: env.MAIL_FROM! },
       ...passwordResetEmail(email, rawToken),
     });
   }

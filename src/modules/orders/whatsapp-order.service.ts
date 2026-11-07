@@ -12,7 +12,7 @@ export class WhatsAppOrderService {
     if (!phone || !/^216[2-9]\d{7}$/.test(phone)) return { enabled: false, url: null };
     const address = order.address;
     const lines = [
-      order.whatsappStoreName ?? "Shoozy",
+      order.whatsappStoreName ?? "Shoezy",
       `Order: ${order.orderNumber}`,
       "Products:",
       ...order.items.map((item) => `- ${item.productName} / ${item.variantName}${item.sku ? ` (SKU: ${item.sku})` : ""} x${item.quantity}`),
