@@ -18,7 +18,8 @@
     "notifications:retry": "tsx src/scripts/retry-notification-outbox.ts",
     "test": "vitest run",
     "test:watch": "vitest",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "seed:shipping": "tsx scripts/seed-production-shipping.ts"
   },
   "dependencies": {
     "@ffmpeg-installer/ffmpeg": "^1.1.0",

@@ -1,4 +1,4 @@
-﻿import type { Prisma, PrismaClient } from "@prisma/client";
+import type { Prisma, PrismaClient } from "@prisma/client";
 import { prisma } from "../../config/database";
 import { localizedField, type CatalogLocale } from "../../common/localization/catalog-localization";
 import { CommercePricingService } from "../../services/commerce-pricing.service";
@@ -124,9 +124,9 @@ function productWhere(query: ListCatalogProductsQuery, now: Date): Prisma.Produc
           : { equals: query.gender, mode: 'insensitive' }
       : undefined,
     season: query.season ? { equals: query.season, mode: "insensitive" } : undefined,
-    productCategories: {
+    productCategories: query.category ? {
       some: { category: { isActive: true, slug: query.category } },
-    },
+    } : undefined,
     collectionProducts: query.collection ? {
       some: { collection: { ...collectionAvailability(now), slug: query.collection } },
     } : undefined,
@@ -320,29 +320,40 @@ export class CatalogRepository {
     const where = productWhere(query, now);
 
     if (query.groupByModel) {
-      const groups = typeof this.client.product.groupBy === "function" ? await this.client.product.groupBy({
-        by: ["groupId"],
-        where,
-      }) : [];
-      const total = groups.length;
-
-      const allMatching = await this.client.product.findMany({
+      // 1. Fetch lightweight candidate list of only (id, groupId) to identify unique models quickly
+      const candidateIds = await this.client.product.findMany({
         where,
         orderBy: productOrder(query.sort),
-        select: catalogProductListSelect,
+        select: { id: true, groupId: true },
       });
 
       const seenGroups = new Set<string>();
-      const uniqueByGroup: CatalogProductListRecord[] = [];
-      for (const item of allMatching) {
-        if (!seenGroups.has(item.groupId)) {
-          seenGroups.add(item.groupId);
-          uniqueByGroup.push(item);
+      const targetProductIds: string[] = [];
+      for (const candidate of candidateIds) {
+        if (!seenGroups.has(candidate.groupId)) {
+          seenGroups.add(candidate.groupId);
+          targetProductIds.push(candidate.id);
         }
       }
+      const total = targetProductIds.length;
 
       const pageStart = (query.page - 1) * query.limit;
-      const items = uniqueByGroup.slice(pageStart, pageStart + query.limit);
+      const pageProductIds = targetProductIds.slice(pageStart, pageStart + query.limit);
+
+      // 2. Fetch full catalog details ONLY for the exact items on this page
+      const fetchedItems = pageProductIds.length > 0
+        ? await this.client.product.findMany({
+            where: { id: { in: pageProductIds } },
+            select: catalogProductListSelect,
+          })
+        : [];
+
+      // Preserve the sorted order of pageProductIds
+      const itemMap = new Map(fetchedItems.map((item) => [item.id, item]));
+      const items = pageProductIds.flatMap((id) => {
+        const item = itemMap.get(id);
+        return item ? [item] : [];
+      });
       const [{ summaries }, groupCounts, groupVariantsMap] = await Promise.all([
         this.variantSummaries(items.map((item) => item.id), now, locale),
         typeof this.client.product.groupBy === "function" ? this.client.product.groupBy({
