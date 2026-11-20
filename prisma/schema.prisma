@@ -760,7 +760,7 @@ model OrderItem {
   variant       ProductVariant @relation(fields: [variantId], references: [id])
   returnItems   ReturnItem[]
   exchangeItems ExchangeItem[]
-  review        ProductReview?
+  reviews       ProductReview[]
 
   @@index([orderId])
   @@index([variantId])
@@ -1003,10 +1003,11 @@ model ProductReview {
   id                 String       @id @default(uuid()) @db.Uuid
   productId          String       @map("product_id") @db.Uuid
   userId             String       @map("user_id") @db.Uuid
-  orderItemId        String?      @unique @map("order_item_id") @db.Uuid
-  rating             Int
+  orderItemId        String?      @map("order_item_id") @db.Uuid
+  rating             Int?
   title              String?      @db.VarChar(180)
   body               String?      @db.Text
+  images             String[]     @default([]) @map("images")
   status             ReviewStatus @default(PENDING)
   isVerifiedPurchase Boolean      @default(false) @map("is_verified_purchase")
   publishedAt        DateTime?    @map("published_at") @db.Timestamptz

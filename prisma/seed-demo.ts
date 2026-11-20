@@ -1664,7 +1664,7 @@ async function main() {
     const tpl = reviewTemplates[i];
     const match = deliveredOrderItems[i];
 
-    const existingReview = await prisma.productReview.findUnique({
+    const existingReview = await prisma.productReview.findFirst({
       where: { orderItemId: match.item.id },
     });
 

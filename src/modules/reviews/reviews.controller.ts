@@ -1,11 +1,106 @@
-import type { NextFunction, Request, Response } from "express"; import { AppError } from "../../common/errors/app-error"; import { ok } from "../../common/utils/api-response"; import { ReviewsService } from "./reviews.service"; import type { CreateReviewInput, ListAdminReviewsQuery, ListPublicReviewsQuery, UpdateReviewInput } from "./reviews.validation";
-function value(request: Request) { if (!request.validated) throw new AppError(500, "Request context missing", "REQUEST_CONTEXT_MISSING"); return request.validated; } function auth(request: Request) { if (!request.auth) throw new AppError(500, "Auth context missing", "REQUEST_CONTEXT_MISSING"); return request.auth.userId; }
-export class ReviewsController { constructor(private readonly service = new ReviewsService()) {}
-  listPublic = async (r: Request, s: Response, n: NextFunction) => { try { const v = value(r); s.json(ok(await this.service.listPublic((v.params as { productId: string }).productId, v.query as ListPublicReviewsQuery))); } catch (e: unknown) { n(e); } };
-  checkEligibility = async (r: Request, s: Response, n: NextFunction) => { try { const v = value(r); s.json(ok(await this.service.checkEligibility(auth(r), (v.params as { productId: string }).productId))); } catch (e: unknown) { n(e); } };
-  create = async (r: Request, s: Response, n: NextFunction) => { try { const v = value(r); s.status(201).json(ok(await this.service.create(auth(r), (v.params as { productId: string }).productId, v.body as CreateReviewInput))); } catch (e: unknown) { n(e); } };
-  update = async (r: Request, s: Response, n: NextFunction) => { try { const v = value(r); const p = v.params as { productId: string; reviewId: string }; s.json(ok(await this.service.update(auth(r), p.productId, p.reviewId, v.body as UpdateReviewInput))); } catch (e: unknown) { n(e); } };
-  delete = async (r: Request, s: Response, n: NextFunction) => { try { const v = value(r); const p = v.params as { productId: string; reviewId: string }; await this.service.delete(auth(r), p.productId, p.reviewId); s.status(204).send(); } catch (e: unknown) { n(e); } };
-  listAdmin = async (r: Request, s: Response, n: NextFunction) => { try { s.json(ok(await this.service.listAdmin(value(r).query as ListAdminReviewsQuery))); } catch (e: unknown) { n(e); } };
-  moderate = async (r: Request, s: Response, n: NextFunction) => { try { const v = value(r); s.json(ok(await this.service.moderate((v.params as { reviewId: string }).reviewId, (v.body as { status: "APPROVED" | "REJECTED" }).status))); } catch (e: unknown) { n(e); } };
+import type { NextFunction, Request, Response } from "express";
+import { AppError } from "../../common/errors/app-error";
+import { ok } from "../../common/utils/api-response";
+import { ReviewsService } from "./reviews.service";
+import type { CreateReviewInput, ListAdminReviewsQuery, ListPublicReviewsQuery, UpdateReviewInput } from "./reviews.validation";
+import { createMediaStorage } from "../products/media-storage";
+
+function value(request: Request) {
+  if (!request.validated) throw new AppError(500, "Request context missing", "REQUEST_CONTEXT_MISSING");
+  return request.validated;
+}
+
+function auth(request: Request) {
+  if (!request.auth) throw new AppError(500, "Auth context missing", "REQUEST_CONTEXT_MISSING");
+  return request.auth.userId;
+}
+
+export class ReviewsController {
+  constructor(private readonly service = new ReviewsService()) {}
+
+  listPublic = async (r: Request, s: Response, n: NextFunction) => {
+    try {
+      const v = value(r);
+      s.json(ok(await this.service.listPublic((v.params as { productId: string }).productId, v.query as ListPublicReviewsQuery)));
+    } catch (e: unknown) {
+      n(e);
+    }
+  };
+
+  checkEligibility = async (r: Request, s: Response, n: NextFunction) => {
+    try {
+      const v = value(r);
+      s.json(ok(await this.service.checkEligibility(auth(r), (v.params as { productId: string }).productId)));
+    } catch (e: unknown) {
+      n(e);
+    }
+  };
+
+  create = async (r: Request, s: Response, n: NextFunction) => {
+    try {
+      const v = value(r);
+      const input = { ...(v.body as CreateReviewInput) };
+      const files = (r.files as Express.Multer.File[] | undefined) || [];
+      if (files.length > 0) {
+        const storage = createMediaStorage();
+        const uploadedUrls: string[] = [];
+        for (const file of files) {
+          const uploaded = await storage.upload({ buffer: file.buffer, mimetype: file.mimetype }, { folder: "reviews" });
+          uploadedUrls.push(uploaded.url);
+        }
+        input.images = [...(input.images || []), ...uploadedUrls];
+      }
+      s.status(201).json(ok(await this.service.create(auth(r), (v.params as { productId: string }).productId, input)));
+    } catch (e: unknown) {
+      n(e);
+    }
+  };
+
+  update = async (r: Request, s: Response, n: NextFunction) => {
+    try {
+      const v = value(r);
+      const p = v.params as { productId?: string; reviewId: string };
+      s.json(ok(await this.service.update(auth(r), p.reviewId, v.body as UpdateReviewInput, p.productId)));
+    } catch (e: unknown) {
+      n(e);
+    }
+  };
+
+  delete = async (r: Request, s: Response, n: NextFunction) => {
+    try {
+      const v = value(r);
+      const p = v.params as { productId?: string; reviewId: string };
+      await this.service.delete(auth(r), p.reviewId, p.productId);
+      s.status(204).send();
+    } catch (e: unknown) {
+      n(e);
+    }
+  };
+
+  listAdmin = async (r: Request, s: Response, n: NextFunction) => {
+    try {
+      s.json(ok(await this.service.listAdmin(value(r).query as ListAdminReviewsQuery)));
+    } catch (e: unknown) {
+      n(e);
+    }
+  };
+
+  moderate = async (r: Request, s: Response, n: NextFunction) => {
+    try {
+      const v = value(r);
+      s.json(ok(await this.service.moderate((v.params as { reviewId: string }).reviewId, (v.body as { status: "APPROVED" | "REJECTED" }).status)));
+    } catch (e: unknown) {
+      n(e);
+    }
+  };
+
+  deleteAdmin = async (r: Request, s: Response, n: NextFunction) => {
+    try {
+      const v = value(r);
+      await this.service.deleteAdmin((v.params as { reviewId: string }).reviewId);
+      s.status(204).send();
+    } catch (e: unknown) {
+      n(e);
+    }
+  };
 }

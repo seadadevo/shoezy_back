@@ -21,8 +21,8 @@ export type RatingSummary = {
 
 const oneDecimal = (value: number) => Math.round(value * 10) / 10;
 
-export function ratingSummaryFromGroups(groups: ReadonlyArray<{ rating: number; _count: { _all: number } }>): RatingSummary {
-  const counts = new Map(groups.map((group) => [group.rating, group._count._all]));
+export function ratingSummaryFromGroups(groups: ReadonlyArray<{ rating: number | null; _count: { _all: number } }>): RatingSummary {
+  const counts = new Map(groups.filter((g) => g.rating !== null).map((group) => [group.rating as Star, group._count._all]));
   const count = stars.reduce((total, star) => total + (counts.get(star) ?? 0), 0);
   const weighted = stars.reduce((total, star) => total + star * (counts.get(star) ?? 0), 0);
   const bucket = (star: Star): Bucket => {

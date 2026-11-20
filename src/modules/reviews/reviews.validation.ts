@@ -1,11 +1,76 @@
 import { z } from "zod";
-const uuid = z.string().uuid(); const emptyBody = z.preprocess((value) => value ?? {}, z.object({}).strict());
-const rating = z.number().int().min(1).max(5); const title = z.string().trim().min(1).max(180).nullable(); const body = z.string().trim().min(1).max(10_000).nullable();
-export const listPublicReviewsSchema = z.object({ body: emptyBody, params: z.object({ productId: uuid }).strict(), query: z.object({ page: z.coerce.number().int().positive().default(1), limit: z.coerce.number().int().positive().max(100).default(20), sort: z.enum(["newest", "oldest", "rating_desc", "rating_asc"]).default("newest") }).strict() }).strict();
-export const createReviewSchema = z.object({ body: z.object({ orderItemId: uuid, rating, title: title.optional(), body: body.optional() }).strict(), params: z.object({ productId: uuid }).strict(), query: z.object({}).strict() }).strict();
-export const updateReviewSchema = z.object({ body: z.object({ rating: rating.optional(), title: title.optional(), body: body.optional() }).strict().refine((value) => Object.keys(value).length > 0, "At least one review field is required"), params: z.object({ productId: uuid, reviewId: uuid }).strict(), query: z.object({}).strict() }).strict();
-export const checkEligibilitySchema = z.object({ body: emptyBody, params: z.object({ productId: uuid }).strict(), query: z.object({}).strict() }).strict();
-export const deleteReviewSchema = z.object({ body: emptyBody, params: z.object({ productId: uuid, reviewId: uuid }).strict(), query: z.object({}).strict() }).strict();
-export const listAdminReviewsSchema = z.object({ body: emptyBody, params: z.object({}).strict(), query: z.object({ page: z.coerce.number().int().positive().default(1), limit: z.coerce.number().int().positive().max(100).default(20), status: z.enum(["PENDING", "APPROVED", "REJECTED"]).optional(), productId: uuid.optional(), rating: z.coerce.number().int().min(1).max(5).optional() }).strict() }).strict();
-export const moderateReviewSchema = z.object({ body: z.object({ status: z.enum(["APPROVED", "REJECTED"]) }).strict(), params: z.object({ reviewId: uuid }).strict(), query: z.object({}).strict() }).strict();
-export type ListPublicReviewsQuery = z.infer<typeof listPublicReviewsSchema>["query"]; export type CreateReviewInput = z.infer<typeof createReviewSchema>["body"]; export type UpdateReviewInput = z.infer<typeof updateReviewSchema>["body"]; export type ListAdminReviewsQuery = z.infer<typeof listAdminReviewsSchema>["query"];
+
+const uuid = z.string().uuid();
+const emptyBody = z.preprocess((value) => value ?? {}, z.object({}).strict());
+const rating = z.number().int().min(1).max(5);
+const title = z.string().trim().min(1).max(180).nullable();
+const body = z.string().trim().min(1).max(10_000).nullable();
+const images = z.array(z.string().max(2048)).max(10).default([]);
+
+export const listPublicReviewsSchema = z.object({
+  body: emptyBody,
+  params: z.object({ productId: uuid }).strict(),
+  query: z.object({
+    page: z.coerce.number().int().positive().default(1),
+    limit: z.coerce.number().int().positive().max(100).default(20),
+    sort: z.enum(["newest", "oldest", "rating_desc", "rating_asc"]).default("newest"),
+  }).strict(),
+}).strict();
+
+export const createReviewSchema = z.object({
+  body: z.object({
+    orderItemId: uuid.optional(),
+    rating: rating.optional().nullable(),
+    title: title.optional(),
+    body: body.optional(),
+    images: images.optional(),
+  }).strict(),
+  params: z.object({ productId: uuid }).strict(),
+  query: z.object({}).strict(),
+}).strict();
+
+export const updateReviewSchema = z.object({
+  body: z.object({
+    rating: rating.optional().nullable(),
+    title: title.optional(),
+    body: body.optional(),
+    images: images.optional(),
+  }).strict().refine((value) => Object.keys(value).length > 0, "At least one review field is required"),
+  params: z.object({ productId: uuid, reviewId: uuid }).strict(),
+  query: z.object({}).strict(),
+}).strict();
+
+export const checkEligibilitySchema = z.object({
+  body: emptyBody,
+  params: z.object({ productId: uuid }).strict(),
+  query: z.object({}).strict(),
+}).strict();
+
+export const deleteReviewSchema = z.object({
+  body: emptyBody,
+  params: z.object({ productId: uuid.optional(), reviewId: uuid }).passthrough(),
+  query: z.object({}).strict(),
+}).strict();
+
+export const listAdminReviewsSchema = z.object({
+  body: emptyBody,
+  params: z.object({}).strict(),
+  query: z.object({
+    page: z.coerce.number().int().positive().default(1),
+    limit: z.coerce.number().int().positive().max(100).default(20),
+    status: z.enum(["PENDING", "APPROVED", "REJECTED"]).optional(),
+    productId: uuid.optional(),
+    rating: z.coerce.number().int().min(1).max(5).optional(),
+  }).strict(),
+}).strict();
+
+export const moderateReviewSchema = z.object({
+  body: z.object({ status: z.enum(["APPROVED", "REJECTED"]) }).strict(),
+  params: z.object({ reviewId: uuid }).strict(),
+  query: z.object({}).strict(),
+}).strict();
+
+export type ListPublicReviewsQuery = z.infer<typeof listPublicReviewsSchema>["query"];
+export type CreateReviewInput = z.infer<typeof createReviewSchema>["body"];
+export type UpdateReviewInput = z.infer<typeof updateReviewSchema>["body"];
+export type ListAdminReviewsQuery = z.infer<typeof listAdminReviewsSchema>["query"];

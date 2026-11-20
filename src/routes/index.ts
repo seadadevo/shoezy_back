@@ -10,6 +10,12 @@ import { CheckoutRoutes } from "../modules/checkout/checkout.routes";
 import { ShippingRoutes } from "../modules/shipping/shipping.routes";
 import { OrdersRoutes } from "../modules/orders/orders.routes";
 import { ReviewsRoutes } from "../modules/reviews/reviews.routes";
+import { ReviewsController } from "../modules/reviews/reviews.controller";
+import { deleteReviewSchema } from "../modules/reviews/reviews.validation";
+import { requireAuth } from "../common/middlewares/auth.middleware";
+import { requirePermission } from "../common/middlewares/permission.middleware";
+import { PERMISSIONS } from "../common/auth/rbac.constants";
+import { validate } from "../common/middlewares/validate.middleware";
 import { ReturnsRoutes } from "../modules/returns/returns.routes";
 import { StoreSettingsRoutes } from "../modules/store-settings/store-settings.routes";
 import { ExchangesRoutes } from "../modules/exchanges/exchanges.routes";
@@ -31,6 +37,17 @@ apiRouter.use("/checkout", CheckoutRoutes);
 apiRouter.use("/shipping-methods", ShippingRoutes);
 apiRouter.use("/orders", OrdersRoutes);
 apiRouter.use("/products", ReviewsRoutes);
+
+const reviewsController = new ReviewsController();
+const standaloneReviewsRouter = Router();
+standaloneReviewsRouter.delete(
+  "/:reviewId",
+  validate(deleteReviewSchema),
+  requireAuth,
+  requirePermission(PERMISSIONS.REVIEWS_DELETE_OWN),
+  reviewsController.delete,
+);
+apiRouter.use("/reviews", standaloneReviewsRouter);
 apiRouter.use("/returns", ReturnsRoutes);
 apiRouter.use("/store-settings", StoreSettingsRoutes);
 apiRouter.use("/exchanges", ExchangesRoutes);
