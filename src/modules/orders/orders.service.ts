@@ -2,10 +2,12 @@ import { AppError } from "../../common/errors/app-error";
 import { toOrderDetailDto, toOrderListDto } from "./orders.dto";
 import { OrdersRepository } from "./orders.repository";
 import { WhatsAppOrderService } from "./whatsapp-order.service";
+import { SmtpOrderEmailSender, adminOrderEmail, customerOrderEmail } from "./order-email.service";
+import { env } from "../../config/env";
 import type { OrderStatus } from "@prisma/client";
 import type { CreateOrderInput, ListAdminOrdersQuery, ListOwnOrdersQuery, OrderTransitionInput, ShipOrderInput } from "./orders.validation";
 import type { GuestCreateOrderInput } from "../checkout/guest-checkout.validation";
-import type { PlaceOrderResult } from "./orders.types";
+import type { PlaceOrderResult, OrderDetailRecord } from "./orders.types";
 export const ORDER_TRANSITIONS: Readonly<Record<"CUSTOMER_CANCEL" | "ADMIN_CONFIRM" | "ADMIN_CANCEL" | "ADMIN_SHIP" | "ADMIN_DELIVER", { target: OrderStatus; allowedFrom: readonly OrderStatus[] }>> = {
   CUSTOMER_CANCEL: { target: "CANCELLED", allowedFrom: ["PENDING", "CONFIRMED"] },
   ADMIN_CONFIRM: { target: "CONFIRMED", allowedFrom: ["PENDING"] },
@@ -13,6 +15,25 @@ export const ORDER_TRANSITIONS: Readonly<Record<"CUSTOMER_CANCEL" | "ADMIN_CONFI
   ADMIN_SHIP: { target: "SHIPPED", allowedFrom: ["CONFIRMED"] },
   ADMIN_DELIVER: { target: "DELIVERED", allowedFrom: ["SHIPPED"] },
 };
+const emailSender = new SmtpOrderEmailSender();
+
+async function sendOrderEmails(rawOrder: OrderDetailRecord) {
+  try {
+    if (env.ORDER_NOTIFICATION_EMAIL) {
+      const msg = adminOrderEmail(rawOrder, env.ORDER_NOTIFICATION_EMAIL);
+      await emailSender.send(msg);
+    }
+  } catch (err) {
+    console.error("[OrderEmail] Failed to send admin notification email:", err);
+  }
+  try {
+    const msg = customerOrderEmail(rawOrder);
+    if (msg) await emailSender.send(msg);
+  } catch (err) {
+    console.error("[OrderEmail] Failed to send customer confirmation email:", err);
+  }
+}
+
 export class OrdersService {
   constructor(private readonly repository = new OrdersRepository(), private readonly whatsApp = new WhatsAppOrderService()) {}
   async place(userId: string, idempotencyKey: string, input: CreateOrderInput, now = new Date()) {
@@ -21,7 +42,7 @@ export class OrdersService {
   async placeGuest(sessionToken: string, idempotencyKey: string, input: GuestCreateOrderInput, now = new Date()) {
     return this.toPlaceResult(await this.repository.placeGuest(sessionToken, idempotencyKey, input, now), true);
   }
-  private toPlaceResult(result: PlaceOrderResult, guest = false) {
+  private async toPlaceResult(result: PlaceOrderResult, guest = false) {
     if (result.kind === "IDEMPOTENCY_CONFLICT") throw new AppError(409, "Idempotency-Key is already owned by another operation", "ORDER_IDEMPOTENCY_CONFLICT");
     if (result.kind === "USER_NOT_FOUND") throw new AppError(401, "Authenticated user is unavailable", "AUTH_UNAUTHORIZED");
     if (result.kind === "ADDRESS_NOT_FOUND") throw new AppError(404, "Address not found", "ADDRESS_NOT_FOUND");
@@ -33,7 +54,12 @@ export class OrdersService {
     if (result.kind === "INSUFFICIENT_STOCK") throw new AppError(409, "Cart quantity exceeds current stock", "ORDER_INSUFFICIENT_STOCK");
     if (result.kind === "DISCOUNT_NOT_ELIGIBLE" || result.kind === "DISCOUNT_LIMIT_CHANGED") throw new AppError(409, "Cart discount is no longer eligible", "ORDER_DISCOUNT_CHANGED");
     if (result.kind === "WRITE_CONFLICT") throw new AppError(409, "Order state changed concurrently; retry with the same Idempotency-Key", "ORDER_WRITE_CONFLICT");
-    return { order: toOrderDetailDto(result.order), idempotentReplay: result.kind === "REPLAYED", whatsappConfirmation: this.whatsApp.confirmation(result.order), ...(guest ? { guestAccessToken: result.guestAccessToken } : {}) };
+    const dto = toOrderDetailDto(result.order);
+    // Fire-and-forget order emails — never block order placement
+    if (env.SMTP_HOST && env.MAIL_FROM) {
+      void sendOrderEmails(result.order);
+    }
+    return { order: dto, idempotentReplay: result.kind === "REPLAYED", whatsappConfirmation: this.whatsApp.confirmation(result.order), ...(guest ? { guestAccessToken: result.guestAccessToken } : {}) };
   }
   async getGuest(orderNumber: string, token: string) {
     const order = await this.repository.findGuest(orderNumber, token);

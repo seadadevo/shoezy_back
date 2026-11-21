@@ -262,9 +262,15 @@ export class HomepageRepository implements HomepageStore {
 
   async toggleActive(id: string, isActive: boolean): Promise<HomepageBannerRecord | null> {
     try {
+      const banner = await this.client.homepageBanner.findUnique({ where: { id }, select: { endsAt: true } });
+      const clearExpired = isActive && banner?.endsAt && banner.endsAt <= new Date();
+
       return await this.client.homepageBanner.update({
         where: { id },
-        data: { isActive },
+        data: {
+          isActive,
+          ...(clearExpired ? { endsAt: null } : {}),
+        },
         select: bannerSelect,
       });
     } catch {

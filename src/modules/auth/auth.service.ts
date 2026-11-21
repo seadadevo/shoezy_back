@@ -33,6 +33,7 @@ export interface AuthStore {
   findUserByEmail: AuthRepository["findUserByEmail"];
   findUserByProviderIdentity: AuthRepository["findUserByProviderIdentity"];
   createSocialUser: AuthRepository["createSocialUser"];
+  linkSocialAccount: AuthRepository["linkSocialAccount"];
   createSession: AuthRepository["createSession"];
   findSessionForRefresh: AuthRepository["findSessionForRefresh"];
   rotateSessionAtomically: AuthRepository["rotateSessionAtomically"];
@@ -163,7 +164,7 @@ export class AuthService {
 
   async login(input: LoginInput, metadata: SessionMetadata) {
     const user = await this.repository.findUserByEmail(normalizeEmail(input.email));
-    if (!user || user.provider !== "EMAIL" || !user.passwordHash) {
+    if (!user || !user.passwordHash) {
       await verifyDummyPassword(input.password);
       throw new AppError(401, "Invalid email or password", "AUTH_INVALID_CREDENTIALS");
     }
@@ -252,7 +253,7 @@ export class AuthService {
 
   async forgotPassword(emailInput: string) {
     const user = await this.repository.findUserByEmail(normalizeEmail(emailInput));
-    if (user?.provider === "EMAIL" && user.passwordHash && user.status === "ACTIVE" && !user.deletedAt) {
+    if (user && user.status === "ACTIVE" && !user.deletedAt) {
       const rawToken = generateOpaqueToken();
       await this.repository.replacePasswordResetToken({
         userId: user.id,
@@ -261,8 +262,8 @@ export class AuthService {
       });
       try {
         await this.mail.sendPasswordReset(user.email, rawToken);
-      } catch {
-        // Preserve the same public response for known and unknown accounts.
+      } catch (err) {
+        console.error("[ForgotPassword] Failed to deliver password reset email to:", user.email, err);
       }
     }
     return GENERIC_ACCEPTED;
@@ -291,8 +292,15 @@ export class AuthService {
     );
     if (existingIdentity) return this.startSession(existingIdentity, metadata);
     const email = normalizeEmail(profile.email);
-    if (await this.repository.findUserByEmail(email)) {
-      throw new AppError(409, "An account already uses this email", "AUTH_SOCIAL_ACCOUNT_CONFLICT");
+    const existingUser = await this.repository.findUserByEmail(email);
+    if (existingUser) {
+      const linkedUser = await this.repository.linkSocialAccount(existingUser.id, {
+        provider: profile.provider,
+        providerId: profile.providerId,
+        firstName: profile.firstName,
+        lastName: profile.lastName,
+      });
+      return this.startSession(linkedUser, metadata);
     }
     const userId = randomUUID();
     const pair = createSessionTokenPair(userId);

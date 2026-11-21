@@ -57,6 +57,39 @@ export class AuthRepository {
     });
   }
 
+  async linkSocialAccount(
+    userId: string,
+    data: {
+      provider: "GOOGLE" | "FACEBOOK";
+      providerId: string;
+      firstName?: string;
+      lastName?: string;
+    },
+  ): Promise<AuthUserRecord> {
+    const existing = await this.client.user.findUnique({
+      where: { id: userId },
+      select: authUserSelect,
+    });
+    if (!existing) {
+      throw new AuthRepositoryError("TOKEN_INVALID");
+    }
+
+    const updated = await this.client.user.update({
+      where: { id: userId },
+      data: {
+        provider: data.provider,
+        providerId: data.providerId,
+        emailVerifiedAt: existing.emailVerifiedAt ?? new Date(),
+        firstName: existing.firstName && existing.firstName.trim().length > 0 ? existing.firstName : (data.firstName?.trim() || existing.firstName),
+        lastName: existing.lastName && existing.lastName.trim().length > 0 ? existing.lastName : (data.lastName?.trim() || existing.lastName),
+        lastLoginAt: new Date(),
+      },
+      select: authUserSelect,
+    });
+
+    return updated;
+  }
+
   async createEmailUser(data: CreateEmailUserData): Promise<AuthUserRecord> {
     try {
       return await this.client.$transaction(async (tx) => {

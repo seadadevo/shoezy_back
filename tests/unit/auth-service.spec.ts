@@ -62,6 +62,16 @@ function authStore(): AuthStore {
         providerId: data.providerId,
       }),
     ),
+    linkSocialAccount: vi.fn<AuthStore["linkSocialAccount"]>(async (userId, data) =>
+      user({
+        id: userId,
+        provider: data.provider,
+        providerId: data.providerId,
+        firstName: data.firstName,
+        lastName: data.lastName,
+        emailVerifiedAt: new Date(),
+      }),
+    ),
     createSession: vi.fn<AuthStore["createSession"]>(async () => undefined),
     findSessionForRefresh: vi.fn<AuthStore["findSessionForRefresh"]>(async () => null),
     rotateSessionAtomically: vi.fn<AuthStore["rotateSessionAtomically"]>(async () => true),
@@ -392,16 +402,20 @@ describe("password recovery and social authentication", () => {
     expect(socialWrite.session.refreshTokenHash).toMatch(/^[a-f0-9]{64}$/);
   });
 
-  it("does not silently link an existing email account", async () => {
+  it("automatically links an existing email account and logs in", async () => {
     const store = authStore();
-    vi.mocked(store.findUserByEmail).mockResolvedValue(user());
+    const existing = user({ firstName: "Existing", lastName: "User" });
+    vi.mocked(store.findUserByEmail).mockResolvedValue(existing);
+    vi.mocked(store.linkSocialAccount).mockResolvedValue(existing);
     const providers = verifiers();
     const service = new AuthService(store, mailService(), providers.google, providers.facebook);
-    await expect(service.googleLogin("verified-google-token", {})).rejects.toMatchObject({
-      statusCode: 409,
-      code: "AUTH_SOCIAL_ACCOUNT_CONFLICT",
-    });
+    const result = await service.googleLogin("verified-google-token", {});
+    expect(store.linkSocialAccount).toHaveBeenCalledWith(existing.id, expect.objectContaining({
+      provider: "GOOGLE",
+      providerId: "google-subject",
+    }));
     expect(store.createSocialUser).not.toHaveBeenCalled();
+    expect(result.user.id).toBe(existing.id);
   });
 
   it("propagates mocked Google and Facebook verification failures without creating users", async () => {
