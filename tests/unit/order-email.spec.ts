@@ -1,7 +1,7 @@
 import type { OrderDetailRecord } from "../../src/modules/orders/orders.types";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { env } from "../../src/config/env";
-import { adminOrderEmail, customerOrderEmail } from "../../src/modules/orders/order-email.service";
+import { adminOrderEmail, customerOrderEmail, resolveEmailImageUrl } from "../../src/modules/orders/order-email.service";
 import { NotificationOutboxProcessor } from "../../src/modules/notifications/notifications.worker";
 
 const originalAdminEmail = env.ORDER_NOTIFICATION_EMAIL;
@@ -15,14 +15,54 @@ function order(email: string | null, userId: string | null = null): OrderDetailR
     placedAt: new Date("2026-09-26T10:00:00Z"), createdAt: new Date("2026-09-26T10:00:00Z"),
     shippingMethodName: "Express & home", subtotalMinor: 20_000n, discountMinor: 1_000n, shippingMinor: 2_500n, totalMinor: 21_500n,
     address: { recipientName: "Amira", phone: "+21620123456", countryCode: "TN", state: "Tunis", city: "Tunis", area: null, line1: "1 <Rue>", line2: null, postalCode: "1000" },
-    items: [{ productName: "Shoe <bold>", variantName: "Size 40", sku: "SKU-40", quantity: 2, unitPriceMinor: 10_000n, discountMinor: 1_000n, lineTotalMinor: 19_000n, snapshotJson: { options: [{ option: "Color", value: "Red & blue" }] } }],
+    items: [{
+      productId: "prod-1",
+      variantId: "var-1",
+      productName: "Shoe <bold>",
+      variantName: "Size 40",
+      sku: "SKU-40",
+      quantity: 2,
+      unitPriceMinor: 10_000n,
+      discountMinor: 1_000n,
+      lineTotalMinor: 19_000n,
+      snapshotJson: {
+        imageUrl: "/uploads/shoes/sneaker.jpg",
+        options: [{ option: "Color", value: "Red & blue" }, { option: "Size", value: "40" }],
+      },
+    }],
   } as unknown as OrderDetailRecord;
 }
 
 describe("order email templates", () => {
-  it("uses order snapshots, TND millimes, plain text, and escaped HTML", () => {
+  it("resolves email image URLs correctly for email clients", () => {
+    const origUpload = env.UPLOAD_BASE_URL;
+    const origFrontend = env.FRONTEND_URL;
+    const origEnvUpload = process.env.UPLOAD_BASE_URL;
+    const origEnvFrontend = process.env.FRONTEND_URL;
+
+    delete process.env.UPLOAD_BASE_URL;
+    (env as unknown as Record<string, unknown>).UPLOAD_BASE_URL = undefined;
+    delete process.env.FRONTEND_URL;
+    env.FRONTEND_URL = "https://shoezy.store";
+
+    expect(resolveEmailImageUrl("https://cdn.example.com/pic.jpg")).toBe("https://cdn.example.com/pic.jpg");
+    expect(resolveEmailImageUrl("/uploads/shoes/test.webp")).toBe("https://shoezy.store/uploads/shoes/test.webp");
+    expect(resolveEmailImageUrl("uploads/shoes/test.webp")).toBe("https://shoezy.store/uploads/shoes/test.webp");
+    expect(resolveEmailImageUrl(null)).toBeNull();
+    expect(resolveEmailImageUrl("")).toBeNull();
+
+    env.UPLOAD_BASE_URL = "https://api.shoezy.store/uploads";
+    expect(resolveEmailImageUrl("/uploads/shoes/test.webp")).toBe("https://api.shoezy.store/uploads/shoes/test.webp");
+
+    env.UPLOAD_BASE_URL = origUpload;
+    env.FRONTEND_URL = origFrontend;
+    if (origEnvUpload) process.env.UPLOAD_BASE_URL = origEnvUpload;
+    if (origEnvFrontend) process.env.FRONTEND_URL = origEnvFrontend;
+  });
+
+  it("uses order snapshots, TND millimes, plain text, and luxury HTML", () => {
     const message = adminOrderEmail(order(null), "orders@example.com");
-    expect(message.subject).toBe("New Shoozy Order #SHZ-ABC123");
+    expect(message.subject).toBe("New Shoezy Order #SHZ-ABC123");
     expect(message.text).toContain("Amira <script> Ben Ali");
     expect(message.text).toContain("+21620123456");
     expect(message.text).toContain("Shoe <bold> / Size 40, color Red & blue");
@@ -33,8 +73,14 @@ describe("order email templates", () => {
     expect(message.html).toContain("Shoe &lt;bold&gt;");
     expect(message.html).not.toContain("<script>");
     expect(message.html).not.toContain("<bold>");
+    expect(message.html).toContain("SHOEZY");
+    expect(message.html).toContain("View Order in Dashboard");
+    expect(message.html).toContain("uploads/shoes/sneaker.jpg");
     expect(customerOrderEmail(order(null))).toBeNull();
-    expect(customerOrderEmail(order("amira@example.com"))?.text).toContain("Current status: PENDING");
+    const customerMsg = customerOrderEmail(order("amira@example.com"));
+    expect(customerMsg?.text).toContain("Current status: PENDING");
+    expect(customerMsg?.html).toContain("Thank You for Your Order");
+    expect(customerMsg?.html).toContain("Track &amp; View Your Order");
   });
 });
 

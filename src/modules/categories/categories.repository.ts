@@ -87,16 +87,6 @@ export class CategoriesRepository {
             cursor = parents.get(cursor);
           }
         }
-        if (data.isActive === false && current.isActive) {
-          const links = await transaction.productCategory.findMany({
-            where: { categoryId, product: { status: "ACTIVE", deletedAt: null } },
-            select: {
-              isPrimary: true,
-              product: { select: { productCategories: { where: { categoryId: { not: categoryId }, category: { isActive: true } }, select: { categoryId: true } } } },
-            },
-          });
-          if (links.some((link) => link.isPrimary || link.product.productCategories.length === 0)) return "WOULD_INVALIDATE_PRODUCT";
-        }
         if (Object.keys(data).length) await transaction.category.update({ where: { id: categoryId }, data });
         await upsertTranslations(translations, (locale, fields) => transaction.categoryTranslation.upsert({ where: { categoryId_locale: { categoryId, locale } }, create: { categoryId, locale, ...fields }, update: fields }));
         return transaction.category.findUniqueOrThrow({ where: { id: categoryId }, select: categorySelect });

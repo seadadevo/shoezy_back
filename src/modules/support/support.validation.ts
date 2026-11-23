@@ -15,7 +15,7 @@ export const createSupportSchema = z.object({ body: z.object({
   name: name.optional(),
   phone: phone.optional(),
   email: z.preprocess((v) => (typeof v === "string" && !v.trim() ? undefined : v), z.email().max(320).optional()),
-  orderNumber: z.preprocess((v) => (typeof v === "string" && !v.trim() ? undefined : v), z.string().trim().min(3).max(64).regex(/^[A-Za-z0-9_-]+$/, "Invalid order number format").optional()),
+  orderNumber: z.preprocess((v) => (typeof v === "string" && !v.trim() ? undefined : v), z.string().trim().min(3).max(64).regex(/^SHZ-[A-Za-z0-9_-]+$/i, "Invalid order number format").optional()),
   message: text,
 }).strict(), params: empty, query: empty }).strict();
 export const supportIdSchema = z.object({ body: empty, params: id, query: empty }).strict();

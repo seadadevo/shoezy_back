@@ -61,14 +61,14 @@ export class ReviewsRepository {
         if (input.orderItemId) {
           await transaction.$queryRaw`SELECT "id" FROM "order_items" WHERE "id" = ${input.orderItemId}::uuid FOR UPDATE`;
           const eligible = await transaction.orderItem.findFirst({
-            where: { id: input.orderItemId, productId, order: { userId, status: { in: ["PENDING", "CONFIRMED", "SHIPPED", "DELIVERED"] } } },
+            where: { id: input.orderItemId, productId, order: { userId, status: { in: ["CONFIRMED", "SHIPPED", "DELIVERED"] } } },
             select: { id: true },
           });
           if (!eligible) return "NOT_ELIGIBLE" as const;
           verifiedOrderItemId = eligible.id;
         } else {
           const eligible = await transaction.orderItem.findFirst({
-            where: { productId, order: { userId, status: { in: ["PENDING", "CONFIRMED", "SHIPPED", "DELIVERED"] } } },
+            where: { productId, order: { userId, status: { in: ["CONFIRMED", "SHIPPED", "DELIVERED"] } } },
             select: { id: true },
           });
           if (!eligible) return "NOT_ELIGIBLE" as const;
@@ -125,7 +125,7 @@ export class ReviewsRepository {
     const eligibleItem = await this.client.orderItem.findFirst({
       where: {
         productId,
-        order: { userId, status: { in: ["PENDING", "CONFIRMED", "SHIPPED", "DELIVERED"] } },
+        order: { userId, status: { in: ["CONFIRMED", "SHIPPED", "DELIVERED"] } },
       },
       select: {
         id: true,
